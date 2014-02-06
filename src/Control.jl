@@ -198,6 +198,68 @@ function polymul(p1::Vector{Float64}, p2::Vector{Float64})
     return p3
 end
 
+function polydiv(num::Vector{Float64}, den::Vector{Float64})
+    m = length(den)
+    n = length(num)
+
+    if m == 0
+        throw(DivideError())
+    end
+
+    deg = n-m+1
+    if deg <= 0
+        return Float64[0], num
+    end
+    d = zeros(Float64, n)
+    q = zeros(Float64, deg)
+    r = copy(num)
+    for i = 1:deg
+        quot = r[i] / den[1]
+        q[i] = quot
+        if i > 1
+            d[i-1] = 0
+            r[i-1] = 0
+        end
+        for j = 1:m
+            k = i+j-1
+            elem = den[j]*quot
+            d[k] = elem
+            r[k] -= elem
+        end
+    end
+    r_mask = abs(r).>eps(Float64)
+    if any(r_mask)
+        return q, r[findfirst(r_mask):]
+    else
+        return q, r
+    end
+end
+
+function gcd(a::Vector{Float64}, b::Vector{Float64})
+    #Finds the Greatest Common Denominator of two polynomials using
+    #Euclid's algorithm: http://en.wikipedia.org/wiki/Polynomial_greatest_common_divisor#Euclid.27s_algorithm
+    
+    if all(abs(b).<=2*eps(Float64))
+        return a
+    else
+        s, r = polydiv(a, b)
+        return gcd(b, r)
+    end
+end
+
+function tf_simplify(num::Vector{Float64}, den::Vector{Float64})
+    fact = gcd(num, den)
+    if fact == [1]
+        return (num, den)
+    else
+        num_s = polydiv(num, fact)[1]
+        den_s = polydiv(den, fact)[1]
+        return (num_s, den_s)
+    end
+end
+
+
+
 
 #####################################################################
 ##                        Display Functions                        ##
