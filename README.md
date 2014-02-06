@@ -7,45 +7,47 @@ Below follows a list of things to do. As they get done, they will be checked off
 
 Types
 ---
-[x] Transfer Function
-    [x] Addition
-    [x] Subtraction
-    [ ] Multiplication
-    [ ] Division
-    [ ] Indexing
-[ ] State Space
+    [x] Transfer Function
+
+        [x] Addition
+        [x] Subtraction
+        [ ] Multiplication
+        [ ] Division
+        [ ] Indexing
+
+    [ ] State Space
 
 Analysis
 ---
-[ ] pole
-[ ] zero
-[ ] zpkdata
-[ ] tfdata
-[ ] ctrb
-[ ] obsv
+    [ ] pole
+    [ ] zero
+    [ ] zpkdata
+    [ ] tfdata
+    [ ] ctrb
+    [ ] obsv
 
 Plots
 ---
-[ ] rlocus
-[ ] pzmap
-[ ] bode
-[ ] step
-[ ] nyquist
-[ ] impuls
-[ ] lsim
+    [ ] rlocus
+    [ ] pzmap
+    [ ] bode
+    [ ] step
+    [ ] nyquist
+    [ ] impuls
+    [ ] lsim
 
 Control
 ---
-[ ] pid
-[ ] feedback
+    [ ] pid
+    [ ] feedback
 
 Design
 ---
-[ ] place
-[ ] acker
-[ ] lqr
-[ ] lqi
+    [ ] place
+    [ ] acker
+    [ ] lqr
+    [ ] lqi
 
 Digital
 ---
-[ ] c2d
+    [ ] c2d
