@@ -7,8 +7,9 @@ Below follows a list of things to do. As they get done, they will be checked off
 
 Types
 ---
-    [x] Transfer Function
+    [ ] Transfer Function
 
+        [x] Constructors
         [x] Addition
         [x] Subtraction
         [ ] Multiplication
@@ -16,6 +17,13 @@ Types
         [ ] Indexing
 
     [ ] State Space
+
+        [ ] Constructors
+        [ ] Addition
+        [ ] Subtraction
+        [ ] Multiplication
+        [ ] Division
+        [ ] Indexing
 
 Analysis
 ---
