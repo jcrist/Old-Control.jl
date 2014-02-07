@@ -18,6 +18,7 @@ module Polylib
 #--> Unit Tests
 
 export polyadd, polymul, polydiv, polygcd, polyfracsimp, polytostring
+export trimzeros
 
 import Base: length, getindex, show, string, print
 
@@ -125,6 +126,28 @@ function polyfracsimp(num::Vector{Float64}, den::Vector{Float64})
     end
 end
 
+function trimzeros(p::Vector{Float64})
+    #Trim leading zeros in a vector, returns a new vector
+    nzfirst = 0
+    for j in 1:length(p)
+        #For each element in a vector, check if the element is greater 
+        #than ~0. This allows for small computation errors if input
+        #vector is calculated (i.e. 1e-17 ~0, and will be removed)
+        if abs(p[j]) > 2*eps(Float64)
+            nzfirst = j
+            break
+        end
+    end
+    if nzfirst == 0
+        #The array is all zeros, return a zero array
+        r = [0.0]
+    else
+        #Truncate all leading zeros
+        r = p[nzfirst:]
+    end
+    return r
+end
+
 function polytostring{T}(p::Vector{T}; var="s")
     #Convert polynomial vector into a string
     thestr = "0"
@@ -133,11 +156,9 @@ function polytostring{T}(p::Vector{T}; var="s")
     N = length(p)
 
     for k=1:(N)
-        num = abs(p[k])
-        if isa(num, Integer)
-            coefstr = "$num"
-        else
-            coefstr = @sprintf("%.4f", num)
+        coefstr = @sprintf("%.4f", abs(p[k]))
+        if coefstr[end-3:] == "0000"
+            coefstr = coefstr[1:end-5]
         end
         power = N-k
         if power == 0
@@ -176,7 +197,7 @@ function polytostring{T}(p::Vector{T}; var="s")
                     thestr = "$thestr + $newstr"
                 end
             end
-        elseif k == 0 && newstr != "" && p[k] < 0
+        elseif k == 1 && newstr != "" && p[k] < 0
             thestr = "-$newstr"
         else
             thestr = newstr

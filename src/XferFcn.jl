@@ -17,7 +17,7 @@ export tf, TransferFunction
 
 import Base: length, getindex, show, string, print
 import Base: *, /, +, -
-import Polylib: polymul, polydiv, polyadd, polytostring, polyfracsimp
+import Polylib: polymul, polydiv, polyadd, polytostring, polyfracsimp, trimzeros
 
 
 #TODO: Where should these go?
@@ -54,39 +54,30 @@ type TransferFunction
 
         ## Remove leading zeros on num and den ##
         #Data is deepcopied to prevent mutating the calling arrays
-        data = {deepcopy(den), deepcopy(num)}
-        for p in 1:2
-            for o in 1:outputs
-                for i in 1:inputs
-                    nzfirst = 0
-                    for j in 1:length(data[p][o,i])
-                        #For each element in a num/den vector, check if the element is
-                        #greater than ~0. This allows for small computation errors
-                        #if input vector is calculated (i.e. 1e-17 ~0, and will be removed)
-                        if abs(data[p][o,i][j]) > 2*eps(Float64)
-                            nzfirst = j
-                            break
-                        end
-                    end
-                    if nzfirst == 0
-                        # The array is all zeros
-                        if p==1
-                            #This is a denominator with zero value
-                            jl_error("Input $i, output $o has a zero denominator")
-                        else
-                            #This is a numerator, make the denominator a 1
-                            #Results in 0/1
-                            data[2][o,i] = [0]
-                            data[1][o,i] = [1]
-                        end
-                    else
-                        #Truncate all leading zeros
-                        data[p][o,i] = data[p][o,i][nzfirst:]
-                    end
+        #TODO: Determine if deepcopy needed. Should be able to allocate space,
+        #and just return trimmed arrays into location.
+        new_den = deepcopy(den)
+        new_num = deepcopy(num)
+        for o=1:outputs
+            for i=1:inputs
+                den_temp = trimzeros(new_den[o,i])
+                if den_temp == [0.0]
+                    #This is a denominator with zero value, throw error
+                    jl_error("Input $i, output $o has a zero denominator")
                 end
+                num_temp = trimzeros(new_num[o,i])
+                if num_temp == [0.0]
+                    #The numerator is zero, make the denominator 1
+                    #assignment to the array occurs here, as no need to simplify
+                    new_num[o,i] = num_temp
+                    new_den[o,i] = [1.0]
+                    #No need to simplify the fraction, continue to next input
+                    continue
+                end
+                #Simplify the resulting fraction
+                new_num[o,i], new_den[o,i] = polyfracsimp(num_temp, den_temp)
             end
         end
-        (new_den, new_num) = data
         new(new_num, new_den, inputs, outputs)
     end
 end
@@ -112,7 +103,6 @@ end
 ##                         Math Operators                          ##
 #####################################################################
 
-#TODO: Add simplification step, a + a - a != a currently, due to growing den
 #TODO: Implement +, -, for scalars
 #TODO: Implement *, /, neg
 
@@ -177,9 +167,6 @@ end
 ##                        Display Functions                        ##
 #####################################################################
 
-# TODO: Negative sign is dropped from first numerator
-# TODO: Remove excess zeros on integers
-
 function string(tf::TransferFunction)
     ## String representation of the transfer function ##
 
@@ -189,7 +176,7 @@ function string(tf::TransferFunction)
     for i=1:tf.inputs
         for j=1:tf.outputs
             if mimo
-                outstr = "$outstrInput $i to output $j\n"
+                outstr = "$(outstr)Input $i to output $j\n"
             end
 
             #Convert the numerator and denominator to strings
