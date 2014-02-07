@@ -43,12 +43,12 @@ type TransferFunction
         out_n, in_n = size(num)
         out_d, in_d = size(den)
         if out_n != out_d
-            jl_error("num and den output dimensions must match")
+            error("num and den output dimensions must match")
         end
         outputs = out_n
 
         if in_n != in_d
-            jl_error("num and den input dimensions must match")
+            error("num and den input dimensions must match")
         end
         inputs = in_n
 
@@ -63,7 +63,7 @@ type TransferFunction
                 den_temp = trimzeros(new_den[o,i])
                 if den_temp == [0.0]
                     #This is a denominator with zero value, throw error
-                    jl_error("Input $i, output $o has a zero denominator")
+                    error("Input $i, output $o has a zero denominator")
                 end
                 num_temp = trimzeros(new_num[o,i])
                 if num_temp == [0.0]
@@ -103,18 +103,21 @@ end
 ##                         Math Operators                          ##
 #####################################################################
 
-#TODO: Implement +, -, for scalars
-#TODO: Implement *, /, neg
+#TODO: Implement *, /
+#TODO: Refactor for less code, using parametric types.
+#----> Should be able to call operator, and have operator attempt
+#----> conversion to TF if other is not a TF.
 
+## ADDITION ##
 function +(self::TransferFunction, other::TransferFunction)
     ## Add two transfer function objects (parallel connection) ##
 
     #Check that the input-output sizes are consistent
     if self.inputs != other.inputs
-        jl_error("The first summand has %i input(s), but the second has %i.", self.inputs, other.inputs)
+        error("The first summand has %i input(s), but the second has %i.", self.inputs, other.inputs)
     end
     if self.outputs != other.outputs
-        jl_error("The first summand has %i output(s), but the second has %i.", self.outputs, other.outputs)
+        error("The first summand has %i output(s), but the second has %i.", self.outputs, other.outputs)
     end
 
     #Preallocate the numerator and denominator of the sum
@@ -131,15 +134,23 @@ function +(self::TransferFunction, other::TransferFunction)
     return TransferFunction(num, den)
 end
 
+function +{T<:Real}(self::TransferFunction, other::T)
+    ## Add a transfer function to a number ##
+    return +(self, tf([other], [1.0]))
+end
+
++{T<:Real}(other::T, self::TransferFunction) = +(self, other)
+    
+## SUBTRACTION ##
 function -(self::TransferFunction, other::TransferFunction)
     ## Subtract two transfer function objects (parallel connection) ##
 
     #Check that the input-output sizes are consistent
     if self.inputs != other.inputs
-        jl_error("The first summand has %i input(s), but the second has %i.", self.inputs, other.inputs)
+        error("The first summand has %i input(s), but the second has %i.", self.inputs, other.inputs)
     end
     if self.outputs != other.outputs
-        jl_error("The first summand has %i output(s), but the second has %i.", self.outputs, other.outputs)
+        error("The first summand has %i output(s), but the second has %i.", self.outputs, other.outputs)
     end
 
     #Preallocate the numerator and denominator of the sum
@@ -156,7 +167,30 @@ function -(self::TransferFunction, other::TransferFunction)
     return TransferFunction(num, den)
 end
 
+function -{T<:Real}(self::TransferFunction, other::T)
+    ## Subtract a number from a transfer function ##
+    return -(self, tf([other], [1.0]))
+end
+
+-{T<:Real}(other::T, self::TransferFunction) = -(self, other)
+
+## NEGATION ##
+function -(self::TransferFunction)
+    ## Negate a transfer function ##
+    #Preallocate space for num, deepcopy den
+    num = Array(Vector{Float64}, self.outputs, self.inputs)
+    den = deepcopy(self.den)
+    for o=1:self.outputs
+        for i=1:self.inputs
+            num[o,i] = -self.num[o,i]
+        end
+    end
+    return TransferFunction(num, den)
+end
+
+## HELPERS ##
 function _addSISO(num1::Vector{Float64}, den1::Vector{Float64}, num2::Vector{Float64}, den2::Vector{Float64})
+    #Helper function for adding 2 SISO systems together
     num = polyadd(polymul(num1, den2), polymul(num2, den1))
     den = polymul(den1, den2)
     return num, den

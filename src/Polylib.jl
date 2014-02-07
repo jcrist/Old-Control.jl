@@ -122,6 +122,11 @@ function polyfracsimp(num::Vector{Float64}, den::Vector{Float64})
     else
         num_s = polydiv(num, fact)[1]
         den_s = polydiv(den, fact)[1]
+        #To stop the num and den from getting smaller each time, calculate
+        #a scaling factor so that den[1] = 1
+        scale = 1.0/den_s[1]
+        num_s = num_s*scale
+        den_s = den_s*scale
         return (num_s, den_s)
     end
 end
@@ -165,7 +170,7 @@ function polytostring{T}(p::Vector{T}; var="s")
             if coefstr != "0"
                 newstr = coefstr
             else
-                if k == 0
+                if k == 1
                     newstr = "0"
                 else
                     newstr = ""
