@@ -7,14 +7,13 @@ Below follows a list of things to do. As they get done, they will be checked off
 
 Types
 ---
-    [ ] Transfer Function
+    [x] Transfer Function
 
         [x] Constructors
         [x] Addition
         [x] Subtraction
-        [ ] Multiplication
-        [ ] Division
-        [ ] Indexing
+        [x] Multiplication
+        [x] Division
 
     [ ] State Space
 
@@ -23,7 +22,9 @@ Types
         [ ] Subtraction
         [ ] Multiplication
         [ ] Division
-        [ ] Indexing
+
+    [ ] tf2ss
+    [ ] ss2tf
 
 Analysis
 ---

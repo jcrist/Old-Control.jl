@@ -20,12 +20,6 @@ import Base: *, /, +, -
 import Polylib: polymul, polydiv, polyadd, polytostring, polyfracsimp, trimzeros
 
 
-#TODO: Where should these go?
-#Used for determining if value is ~0
-eps{T}(::Type{T}) = convert(T,0)
-eps{F<:FloatingPoint}(x::Type{F}) = Base.eps(F)
-
-
 #####################################################################
 ##                      Data Type Declarations                     ##
 #####################################################################
@@ -87,9 +81,17 @@ end
 ##                      Constructor Functions                      ##
 #####################################################################
 
-#TODO: Allow for num, den of any type, convert to float
+function tf{T<:Real, S<:Real}(num::Vector{T}, den::Vector{S})
+    #Create SISO system
+    narr = Array(Vector{Float64}, 1, 1)
+    narr[1,1] = convert(Vector{Float64}, num)
+    darr = Array(Vector{Float64}, 1, 1)
+    darr[1,1] = convert(Vector{Float64}, den)
+    TransferFunction(narr, darr)
+end
 
 function tf(num::Vector{Float64}, den::Vector{Float64})
+    #Version for already Float64, avoids type conversion
     #Create SISO system
     narr = Array(Vector{Float64}, 1, 1)
     narr[1,1] = num
@@ -103,10 +105,10 @@ end
 ##                         Math Operators                          ##
 #####################################################################
 
-#TODO: Implement *, /
 #TODO: Refactor for less code, using parametric types.
 #----> Should be able to call operator, and have operator attempt
 #----> conversion to TF if other is not a TF.
+
 
 ## ADDITION ##
 function +(self::TransferFunction, other::TransferFunction)
@@ -135,8 +137,13 @@ function +(self::TransferFunction, other::TransferFunction)
 end
 
 function +{T<:Real}(self::TransferFunction, other::T)
-    ## Add a transfer function to a number ##
-    return +(self, tf([other], [1.0]))
+    ## Add a number to a transfer function ##
+    temp = tf([other], [1.0])
+    #Ensure input-output match
+    #this is kinda hacky, but it works for the checks we need
+    temp.inputs = self.inputs
+    temp.outputs = self.outputs
+    return +(self, temp)
 end
 
 +{T<:Real}(other::T, self::TransferFunction) = +(self, other)
@@ -169,24 +176,92 @@ end
 
 function -{T<:Real}(self::TransferFunction, other::T)
     ## Subtract a number from a transfer function ##
-    return -(self, tf([other], [1.0]))
+    temp = tf([other], [1.0])
+    #Ensure input-output match
+    #this is kinda hacky, but it works for the checks we need
+    temp.inputs = self.inputs
+    temp.outputs = self.outputs
+    return -(self, temp)
 end
 
--{T<:Real}(other::T, self::TransferFunction) = -(self, other)
+-{T<:Real}(other::T, self::TransferFunction) = +(-self, other)
 
 ## NEGATION ##
 function -(self::TransferFunction)
     ## Negate a transfer function ##
-    #Preallocate space for num, deepcopy den
+    #Preallocate space for num
     num = Array(Vector{Float64}, self.outputs, self.inputs)
-    den = deepcopy(self.den)
     for o=1:self.outputs
         for i=1:self.inputs
             num[o,i] = -self.num[o,i]
         end
     end
+    return TransferFunction(num, self.den)
+end
+
+## MULTIPLICATION ##
+function *(self::TransferFunction, other::TransferFunction)
+    ## Multiply two transfer functions together ##
+
+    #Check that the input-output sizes are consistent
+    if self.inputs != other.outputs
+        error(@sprintf("Input->Output Mismatch: C = A*B: A has %i inputs, B has %i outputs", self.inputs, other.outputs))
+    end
+
+    inputs = other.inputs
+    outputs = self.outputs
+
+    #Preallocate the numerator and denominator of the product
+    num = Array(Vector{Float64}, self.outputs, self.inputs)
+    den = Array(Vector{Float64}, self.outputs, self.inputs)
+
+    #Temporary storage for the summands needed to find the (o, i)th element
+    #of the product.
+    num_summand = Array(Vector{Float64}, self.inputs)
+    den_summand = Array(Vector{Float64}, self.inputs)
+
+    for o=1:outputs
+        for i=1:inputs
+            for k=1:self.inputs
+                num_summand[k] = polymul(self.num[o,k], other.num[k,i])
+                den_summand[k] = polymul(self.den[o,k], other.den[k,i])
+                num[o,i], den[o,i] = _addSISO([0.0], [1.0], num_summand[k], den_summand[k])
+            end
+        end
+    end
+
     return TransferFunction(num, den)
 end
+
+function *{T<:Real}(self::TransferFunction, other::T)
+    ## Multiply a number to a transfer function ##
+    temp = tf([other], [1.0])
+    #Ensure input-output match
+    #this is kinda hacky, but it works for the checks we need
+    temp.inputs = self.inputs
+    temp.outputs = self.outputs
+    return *(self, temp)
+end
+
+*{T<:Real}(other::T, self::TransferFunction) = *(self, other)
+
+## DIVISION ##
+function /(self::TransferFunction, other::TransferFunction)
+    ## Divide two transfer functions ##
+    #TODO: Implement division for MIMO systems
+
+    if self.inputs > 1 || self.outputs > 1 || other.inputs > 1 || other.outputs > 1
+        error("NotImplementedError: Division is currently only implemented for SISO systems")
+    end
+
+    num = polymul(self.num[1,1], other.den[1,1])
+    den = polymul(self.den[1,1], other.num[1,1])
+
+    return tf(num, den)
+end
+
+/{T<:Real}(self::TransferFunction, other::T) = /(self, tf([other], [1.0]))
+/{T<:Real}(other::T, self::TransferFunction) = /(tf([other], [1.0]), self)
 
 ## HELPERS ##
 function _addSISO(num1::Vector{Float64}, den1::Vector{Float64}, num2::Vector{Float64}, den2::Vector{Float64})
@@ -235,7 +310,7 @@ function string(tf::TransferFunction)
 end
 
 function show(io::IO, tf::TransferFunction)
-    print("TransferFunction\n")
+    print("TransferFunction:\n")
     print(string(tf))
 end
 
