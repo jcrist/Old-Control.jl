@@ -10,6 +10,7 @@ Types
     [x] Transfer Function
 
         [x] Constructors
+        [x] Printing
         [x] Addition
         [x] Subtraction
         [x] Multiplication
@@ -17,7 +18,8 @@ Types
 
     [ ] State Space
 
-        [ ] Constructors
+        [x] Constructors
+        [x] Printing
         [ ] Addition
         [ ] Subtraction
         [ ] Multiplication
