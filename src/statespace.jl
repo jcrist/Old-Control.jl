@@ -114,7 +114,53 @@ ss(A::Array{Float64, 2}, B::Array{Float64, 2}, C::Array{Float64, 2}, D::Array{Fl
 ##                         Math Operators                          ##
 #####################################################################
 
-#TODO: Implement +, -, *, /, neg for StateSpace
+#TODO: Implement *, / for StateSpace
+#TODO: Some of these could be more efficient, many use intermediate
+#----->terms, and pass on to an already defined function. As speed for
+#----->these operations isn't imperative, this is ok, for now.
+
+## Addition ##
+function +(self::StateSpace, other::StateSpace)
+    ## Add two state space objects ##
+
+    #Ensure systems have same dimensions
+    if self.inputs != other.inputs || self.outputs != other.outputs
+        error("Systems have different shapes.")
+    end
+
+    A = [self.A zeros(size(self.A)); zeros(size(other.A)) other.A]
+    B = [self.B ; other.B]
+    C = [self.C other.C]
+    D = self.D + other.D
+
+    return StateSpace(A, B, C, D)
+end
+
+function +{T<:Real}(self::StateSpace, other::T)
+    ## Add a number to a state space object ##
+    return StateSpace(self.A, self.B, self.C, self.D + other)
+end
+
++{T<:Real}(other::T, self::StateSpace) = +(self, other)
+
+## Subtraction ##
+function -(self::StateSpace, other::StateSpace)
+    ## Subtract two state space objects ##
+    return +(self, -other)
+end
+
+function -{T<:Real}(self::StateSpace, other::T)
+    ## Subtract a number from a state space object ##
+    return StateSpace(self.A, self.B, self.C, self.D - other)
+end
+
+-{T<:Real}(other::T, self::StateSpace) = +(-self, other)
+
+
+## Negation ##
+function -(self::StateSpace)
+    return StateSpace(self.A, self.B, -self.C, -self.D)
+end
 
 #####################################################################
 ##                        Display Functions                        ##

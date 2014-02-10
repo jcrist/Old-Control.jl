@@ -20,8 +20,8 @@ Types
 
         [x] Constructors
         [x] Printing
-        [ ] Addition
-        [ ] Subtraction
+        [x] Addition
+        [x] Subtraction
         [ ] Multiplication
         [ ] Division
 
