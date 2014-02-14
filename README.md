@@ -16,17 +16,19 @@ Types
         [x] Multiplication
         [x] Division
 
-    [ ] State Space
+    [x] State Space
 
         [x] Constructors
         [x] Printing
         [x] Addition
         [x] Subtraction
-        [ ] Multiplication
-        [ ] Division
+        [x] Multiplication
+        [x] Division
+            -NOTE: Currently division by SS objects isn't supported. However, this is the current state with python-control as well. Low key issue. Will examine Octave's control lib at somepoint to implement this feature.
 
     [ ] tf2ss
-    [ ] ss2tf
+    [x] ss2tf
+            -NOTE: This depends on Slicot.jl. Haven't figured out packaging yet, so this isn't robust at all. TODO.
 
 Analysis
 ---

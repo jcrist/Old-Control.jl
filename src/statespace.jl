@@ -18,7 +18,6 @@ export ss, StateSpace
 import Base: length, getindex, show, string, print
 import Base: *, /, +, -
 
-
 #####################################################################
 ##                      Data Type Declarations                     ##
 #####################################################################
@@ -110,11 +109,13 @@ end
 #Fast constructor for arrays that are all Float64
 ss(A::Array{Float64, 2}, B::Array{Float64, 2}, C::Array{Float64, 2}, D::Array{Float64, 2}) = StateSpace(A, B, C, D)
 
+
 #####################################################################
 ##                         Math Operators                          ##
 #####################################################################
 
-#TODO: Implement *, / for StateSpace
+#TODO: Implement / for StateSpace/StateSpace
+#----->Look at how OCTAVE implements this.
 #TODO: Some of these could be more efficient, many use intermediate
 #----->terms, and pass on to an already defined function. As speed for
 #----->these operations isn't imperative, this is ok, for now.
@@ -161,6 +162,54 @@ end
 function -(self::StateSpace)
     return StateSpace(self.A, self.B, -self.C, -self.D)
 end
+
+## Multiplication ##
+function *(self::StateSpace, other::StateSpace)
+    ## Multiply two state space objects ##
+
+    #Check dimension alignment
+    if self.inputs != other.outputs
+        error("A*B: # inputs A must equal # outputs B")
+    end
+
+    #Multiply/Concatenate matrices to form resulting system
+    A = [[other.A   zeros(size(other.A))] ; [self.B*self.C   self.A]]
+
+    B = [other.B ; self.B*other.D]
+
+    C = [self.D*other.C   self.C]
+
+    D = self.D * other.D
+
+    return StateSpace(A, B, C, D)
+end
+
+function *{T<:Real}(self::StateSpace, other::T)
+    ## Multiply a state space object and a scalar ##
+    return StateSpace(self.A, self.B, self.C * other, self.D * other)
+end
+
+*{T<:Real}(other::T, self::StateSpace) = *(self, other)
+
+## Division ##
+function /(self::StateSpace, other::StateSpace)
+    ## Divide two state space objects ##
+
+    error("NotImplementedError: Division by StateSpace objects isn't
+    implemented yet")
+end
+
+function /{T<:Real}(self::StateSpace, other::T)
+    ## Divide a state space object with a scalar ##
+    return StateSpace(self.A, self.B, self.C / other, self.D / other)
+end
+
+function /{T<:Real}(other::T, self::StateSpace)
+    ## Divide a scalar with a state space object ##
+    error("NotImplementedError: Division by StateSpace objects isn't
+    implemented yet")
+end
+
 
 #####################################################################
 ##                        Display Functions                        ##

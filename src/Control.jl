@@ -12,8 +12,8 @@
 
 module Control
 
-import transferfunction: TransferFunction, tf
-export TransferFunction, tf
+import transferfunction: TransferFunction, tf, ss2tf
+export TransferFunction, tf, ss2tf
 
 import statespace: StateSpace, ss
 export StateSpace, ss

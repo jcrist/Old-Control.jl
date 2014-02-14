@@ -6,6 +6,9 @@
 #Constructors:
 #--> tf(num, den)
 
+#Conversions:
+#--> ss2tf(sys)
+
 #Methods:
 #--> show
 #--> string(TransferFunction)
@@ -13,11 +16,14 @@
 
 module transferfunction
 
-export tf, TransferFunction
+export tf, TransferFunction, ss2tf
 
 import Base: length, getindex, show, string, print
 import Base: *, /, +, -
-import polylib: polymul, polydiv, polyadd, polytostring, polyfracsimp, trimzeros
+import polylib: polymul, polydiv, polyadd, polytostring, polyfracsimp, 
+                trimzeros
+import statespace: StateSpace
+import Slicot: tb04ad
 
 
 #####################################################################
@@ -100,6 +106,28 @@ function tf(num::Vector{Float64}, den::Vector{Float64})
     TransferFunction(narr, darr)
 end
 
+#####################################################################
+##                      Conversion Functions                       ##
+#####################################################################
+function ss2tf(sys::StateSpace)
+    ## Convert a StateSpace to a TransferFunction
+    tfout = tb04ad('R', sys.states, sys.inputs, sys.outputs, sys.A,
+                    sys.B, sys.C, sys.D)
+
+    #Allocate space for the num and den arrays
+    num = Array(Vector{Float64}, sys.outputs, sys.inputs)
+    den = Array(Vector{Float64}, sys.outputs, sys.inputs)
+
+    for o=1:sys.outputs
+        for i=1:sys.inputs
+            n1, n2, n3 = size(tfout[7][o,i,:])
+            num[o,i] = reshape(tfout[7][o, i, :], n3)
+            m,n = size(tfout[6][o, :])
+            den[o,i] = reshape(tfout[6][o, :], n)
+        end
+    end
+    return TransferFunction(num, den)
+end
 
 #####################################################################
 ##                         Math Operators                          ##
