@@ -12,6 +12,9 @@
 
 module Control
 
+#Abstract type for all system types
+abstract Sys
+
 import transferfunction: TransferFunction, tf, ss2tf
 export TransferFunction, tf, ss2tf
 

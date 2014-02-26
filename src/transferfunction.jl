@@ -23,22 +23,24 @@ import Base: *, /, +, -
 import polylib: polymul, polydiv, polyadd, polytostring, polyfracsimp, 
                 trimzeros
 import statespace: StateSpace
-import Slicot: tb04ad
+
+import Control: Sys
+import Slicot.Simple: tb04ad
 
 
 #####################################################################
 ##                      Data Type Declarations                     ##
 #####################################################################
 
-type TransferFunction
-    #Datatype for SISO and MIMO transfer functions
+type TransferFunction <: Sys
+    ## Datatype for SISO and MIMO transfer functions ##
     num::Array{Vector{Float64}, 2}
     den::Array{Vector{Float64}, 2}
     inputs::Integer
     outputs::Integer
 
-    #Inner constructor for input validation, and determining inputs/outputs
     function TransferFunction(num::Array{Vector{Float64}, 2}, den::Array{Vector{Float64}, 2})
+        ## Inner constructor for input validation, and determining inputs/outputs ##
         #Validate input and output dimensions match
         out_n, in_n = size(num)
         out_d, in_d = size(den)
@@ -88,7 +90,7 @@ end
 #####################################################################
 
 function tf{T<:Real, S<:Real}(num::Vector{T}, den::Vector{S})
-    #Create SISO system
+    ## Create SISO system ##
     narr = Array(Vector{Float64}, 1, 1)
     narr[1,1] = convert(Vector{Float64}, num)
     darr = Array(Vector{Float64}, 1, 1)
@@ -97,8 +99,8 @@ function tf{T<:Real, S<:Real}(num::Vector{T}, den::Vector{S})
 end
 
 function tf(num::Vector{Float64}, den::Vector{Float64})
+    ## Create SISO system ##
     #Version for already Float64, avoids type conversion
-    #Create SISO system
     narr = Array(Vector{Float64}, 1, 1)
     narr[1,1] = num
     darr = Array(Vector{Float64}, 1, 1)
@@ -110,9 +112,36 @@ end
 ##                      Conversion Functions                       ##
 #####################################################################
 function ss2tf(sys::StateSpace)
-    ## Convert a StateSpace to a TransferFunction
+    ## Convert a StateSpace to a TransferFunction ##
     tfout = tb04ad('R', sys.states, sys.inputs, sys.outputs, sys.A,
                     sys.B, sys.C, sys.D)
+
+    #Allocate space for the num and den arrays
+    num = Array(Vector{Float64}, sys.outputs, sys.inputs)
+    den = Array(Vector{Float64}, sys.outputs, sys.inputs)
+
+    for o=1:sys.outputs
+        for i=1:sys.inputs
+            n1, n2, n3 = size(tfout[7][o,i,:])
+            num[o,i] = reshape(tfout[7][o, i, :], n3)
+            m,n = size(tfout[6][o, :])
+            den[o,i] = reshape(tfout[6][o, :], n)
+        end
+    end
+    return TransferFunction(num, den)
+end
+
+function ss2tf(A::Array{Float64,2}, B::Array{Float64,2}, C::Array{Float64,2}, D::Array{Float64,2})
+    ## Convert system matrices into a TransferFunction ##
+
+    #Calculate necessary dimensions
+    #Note that no size verification occurs here. As tb04ad does this already,
+    #it would be redundant to do it again. Perhaps this may be changed
+    #if needed.
+    states = size(A)[1]
+    inputs = size(B)[2]
+    outputs = size(C)[1]
+    tfout = tb04ad('R', states, inputs, outputs, A, B, C, D)
 
     #Allocate space for the num and den arrays
     num = Array(Vector{Float64}, sys.outputs, sys.inputs)
@@ -293,7 +322,7 @@ end
 
 ## HELPERS ##
 function _addSISO(num1::Vector{Float64}, den1::Vector{Float64}, num2::Vector{Float64}, den2::Vector{Float64})
-    #Helper function for adding 2 SISO systems together
+    ## Helper function for adding 2 SISO systems together ##
     num = polyadd(polymul(num1, den2), polymul(num2, den1))
     den = polymul(den1, den2)
     return num, den
@@ -338,6 +367,7 @@ function string(tf::TransferFunction)
 end
 
 function show(io::IO, tf::TransferFunction)
+    ## Print a transfer function representation in the REPL ##
     print("TransferFunction:\n")
     print(string(tf))
 end

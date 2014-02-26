@@ -17,12 +17,14 @@ export ss, StateSpace
 
 import Base: length, getindex, show, string, print
 import Base: *, /, +, -
+import Control: Sys
 
 #####################################################################
 ##                      Data Type Declarations                     ##
 #####################################################################
 
-type StateSpace
+type StateSpace <: Sys
+    ## Datatype for working with state space system representations ##
     A::Array{Float64, 2}
     B::Array{Float64, 2}
     C::Array{Float64, 2}
@@ -30,7 +32,9 @@ type StateSpace
     states::Integer
     inputs::Integer
     outputs::Integer
+
     function StateSpace(A::Array{Float64, 2}, B::Array{Float64, 2}, C::Array{Float64, 2}, D::Array{Float64, 2})
+        ## Inner constructor for input validation, and determining inputs/outputs ##
         states = size(A)[1]
         inputs = size(B)[2]
         outputs = size(C)[1]
@@ -98,7 +102,7 @@ function ss{T1<:Real, T2<:Real, T3<:Real, T4<:Real}(A::Array{T1}, B::Array{T2}, 
 end
 
 function ss{T1<:Real, T2<:Real, T3<:Real, T4<:Real}(A::Array{T1, 2}, B::Array{T2, 2}, C::Array{T3, 2}, D::Array{T4, 2})
-    #General constructor, for 2x2 arrays of any real type
+    ## General constructor, for 2x2 arrays of any real type ##
     nA = convert(Array{Float64, 2}, A)
     nB = convert(Array{Float64, 2}, B)
     nC = convert(Array{Float64, 2}, C)
@@ -106,8 +110,12 @@ function ss{T1<:Real, T2<:Real, T3<:Real, T4<:Real}(A::Array{T1, 2}, B::Array{T2
     return StateSpace(nA, nB, nC, nD)
 end
 
-#Fast constructor for arrays that are all Float64
+## Fast constructor for arrays that are all Float64 ##
 ss(A::Array{Float64, 2}, B::Array{Float64, 2}, C::Array{Float64, 2}, D::Array{Float64, 2}) = StateSpace(A, B, C, D)
+
+#####################################################################
+##                      Conversion Functions                       ##
+#####################################################################
 
 
 #####################################################################
@@ -160,6 +168,7 @@ end
 
 ## Negation ##
 function -(self::StateSpace)
+    ## Negate a state space object ##
     return StateSpace(self.A, self.B, -self.C, -self.D)
 end
 
@@ -231,6 +240,7 @@ function string(self::StateSpace)
 end
 
 function show(io::IO, self::StateSpace)
+    ## Print a state space object in the REPL ##
     print("StateSpace:\n")
     print(string(self))
 end
