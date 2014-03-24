@@ -14,19 +14,15 @@
 #--> string(TransferFunction)
 #--> Operators: +, -, *, /
 
-module transferfunction
+using .polylib
 
-export tf, TransferFunction, ss2tf
-
-import Base: length, getindex, show, string, print
-import Base: *, /, +, -
-import polylib: polymul, polydiv, polyadd, polytostring, polyfracsimp, 
-                trimzeros
-import statespace: StateSpace
-
-import Control: Sys
-import Slicot.Simple: tb04ad
-
+#Try to import slicot
+SLICOT_DEFINED = true
+try
+    import Slicot.Simple: tb04ad
+catch
+    SLICOT_DEFINED = false
+end
 
 #####################################################################
 ##                      Data Type Declarations                     ##
@@ -111,6 +107,7 @@ end
 #####################################################################
 ##                      Conversion Functions                       ##
 #####################################################################
+if SLICOT_DEFINED
 function ss2tf(sys::StateSpace)
     ## Convert a StateSpace to a TransferFunction ##
     tfout = tb04ad('R', sys.states, sys.inputs, sys.outputs, sys.A,
@@ -157,6 +154,15 @@ function ss2tf(A::Array{Float64,2}, B::Array{Float64,2}, C::Array{Float64,2}, D:
     end
     return TransferFunction(num, den)
 end
+end
+
+#####################################################################
+##                          Misc. Functions                        ##
+#####################################################################
+
+function size(self::TransferFunction)
+    return (self.inputs, self.outputs)
+end
 
 #####################################################################
 ##                         Math Operators                          ##
@@ -166,6 +172,14 @@ end
 #----> Should be able to call operator, and have operator attempt
 #----> conversion to TF if other is not a TF.
 
+## EQUALITY ##
+function ==(tf1::TransferFunction, tf2::TransferFunction)
+    if size(tf1) != size(tf2)
+        return false
+    else
+        return tf1.num == tf2.num && tf1.den == tf2.den
+    end
+end
 
 ## ADDITION ##
 function +(self::TransferFunction, other::TransferFunction)
@@ -371,5 +385,3 @@ function show(io::IO, tf::TransferFunction)
     print("TransferFunction:\n")
     print(string(tf))
 end
-
-end     #Module

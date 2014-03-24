@@ -11,13 +11,6 @@
 #--> string(TransferFunction)
 #--> Operators: +, -, *, /
 
-module statespace
-
-export ss, StateSpace
-
-import Base: length, getindex, show, string, print
-import Base: *, /, +, -
-import Control: Sys
 
 #####################################################################
 ##                      Data Type Declarations                     ##
@@ -244,5 +237,3 @@ function show(io::IO, self::StateSpace)
     print("StateSpace:\n")
     print(string(self))
 end
-
-end     #Module

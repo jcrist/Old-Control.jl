@@ -7,18 +7,21 @@
 #      Transfer Function type definition, and operator overloading
 # *statespace:
 #      State Space type definition, and operator overloading
-# *polylib:
-#      Alternative to Polynomial.jl, accomplishes what I need it to do
 
 module Control
+
+export TransferFunction, tf, ss2tf
+export StateSpace, ss
+
+import Base: length, getindex, show, string, print, size
+import Base: *, /, +, -, ==
 
 #Abstract type for all system types
 abstract Sys
 
-import transferfunction: TransferFunction, tf, ss2tf
-export TransferFunction, tf, ss2tf
+include("polylib.jl")
+include("statespace.jl")
+include("transferfunction.jl")
 
-import statespace: StateSpace, ss
-export StateSpace, ss
 
 end     #Module
