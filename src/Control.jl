@@ -13,8 +13,8 @@ module Control
 export TransferFunction, tf, ss2tf
 export StateSpace, ss
 
-import Base: length, getindex, show, string, print, size, copy
-import Base: promote_rule, one, zero, eltype, convert
+import Base: length, size, one, zero, copy, convert, promote_rule
+import Base: getindex, setindex!, eltype, show, print 
 import Base: *, /, +, -, ==, .*
 using Polynomial
 

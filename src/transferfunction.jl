@@ -21,7 +21,7 @@ immutable SISOTransferFunction{T<:FloatingPoint} <: Sys
 end
 SISOTransferFunction{T<:FloatingPoint}(num::Poly{T}, den::Poly{T}) = SISOTransferFunction{T}(num, den)
 
-immutable TransferFunction{T<:FloatingPoint} <: Sys
+type TransferFunction{T<:FloatingPoint} <: Sys
     ## Datatype for SISO and MIMO transfer functions ##
     matrix::Array{SISOTransferFunction{T}, 2}
     inputs::Integer
@@ -88,17 +88,17 @@ convert{T}(::Type{SISOTransferFunction{T}}, t::SISOTransferFunction) =
 convert{T}(::Type{SISOTransferFunction{T}}, o::Real) = o*one(SISOTransferFunction{T})
 
 if SLICOT_DEFINED
-function ss2tf(sys::StateSpace)
+function ss2tf(ss::StateSpace)
     ## Convert a StateSpace to a TransferFunction ##
-    tfout = tb04ad('R', sys.states, sys.inputs, sys.outputs, sys.A,
-                    sys.B, sys.C, sys.D)
+    tfout = tb04ad('R', ss.states, ss.inputs, ss.outputs, ss.A,
+                    ss.B, ss.C, ss.D)
 
     #Allocate space for the num and den arrays
-    num = Array(Vector{Float64}, sys.outputs, sys.inputs)
-    den = Array(Vector{Float64}, sys.outputs, sys.inputs)
+    num = Array(Vector{Float64}, ss.outputs, ss.inputs)
+    den = Array(Vector{Float64}, ss.outputs, ss.inputs)
 
-    for o=1:sys.outputs
-        for i=1:sys.inputs
+    for o=1:ss.outputs
+        for i=1:ss.inputs
             n1, n2, n3 = size(tfout[7][o,i,:])
             num[o,i] = reshape(tfout[7][o, i, :], n3)
             m,n = size(tfout[6][o, :])
@@ -109,23 +109,20 @@ function ss2tf(sys::StateSpace)
 end
 
 function ss2tf(A::Array{Float64,2}, B::Array{Float64,2}, C::Array{Float64,2}, D::Array{Float64,2})
-    ## Convert system matrices into a TransferFunction ##
+    ## Convert StateSpace to TransferFunction ##
 
     #Calculate necessary dimensions
-    #Note that no size verification occurs here. As tb04ad does this already,
-    #it would be redundant to do it again. Perhaps this may be changed
-    #if needed.
     states = size(A)[1]
     inputs = size(B)[2]
     outputs = size(C)[1]
     tfout = tb04ad('R', states, inputs, outputs, A, B, C, D)
 
     #Allocate space for the num and den arrays
-    num = Array(Vector{Float64}, sys.outputs, sys.inputs)
-    den = Array(Vector{Float64}, sys.outputs, sys.inputs)
+    num = Array(Vector{Float64}, ss.outputs, ss.inputs)
+    den = Array(Vector{Float64}, ss.outputs, ss.inputs)
 
-    for o=1:sys.outputs
-        for i=1:sys.inputs
+    for o=1:ss.outputs
+        for i=1:ss.inputs
             n1, n2, n3 = size(tfout[7][o,i,:])
             num[o,i] = reshape(tfout[7][o, i, :], n3)
             m,n = size(tfout[6][o, :])
