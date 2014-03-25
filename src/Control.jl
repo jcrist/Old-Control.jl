@@ -14,7 +14,7 @@ export TransferFunction, tf, ss2tf
 export StateSpace, ss
 
 import Base: length, getindex, show, string, print, size, copy
-import Base: promote_rule
+import Base: promote_rule, one, zero, eltype, convert
 import Base: *, /, +, -, ==, .*
 using Polynomial
 

@@ -9,18 +9,14 @@ immutable SISOTransferFunction{T<:FloatingPoint} <: Sys
     den::Poly{T}
     function SISOTransferFunction(num::Poly{T}, den::Poly{T})
         fact = gcd(num, den)
-        if fact == one(fact)
-            return new(num, den)
-        else
-            num_s = num/fact
-            den_s = den/fact
-            #To stop the num and den from getting smaller each time, calculate
-            #a scaling factor so that den[1] = 1
-            scale = 1.0/den_s[1]
-            num_s = num_s*scale
-            den_s = den_s*scale
-            return new(num_s, den_s)
-        end
+        num_s = num/fact
+        den_s = den/fact
+        #To stop the num and den from getting smaller each time, calculate
+        #a scaling factor so that den[1] = 1
+        scale = 1.0/den_s[1]
+        num_s = num_s*scale
+        den_s = den_s*scale
+        return new(num_s, den_s)
     end
 end
 SISOTransferFunction{T<:FloatingPoint}(num::Poly{T}, den::Poly{T}) = SISOTransferFunction{T}(num, den)
@@ -57,7 +53,6 @@ function TransferFunction{T<:FloatingPoint}(num::Array{Vector{T}, 2}, den::Array
             num_temp = Poly(num[o,i], 's')
             if num_temp == zero(num_temp) 
                 #The numerator is zero, make the denominator 1
-                num_temp = Poly(num_temp, 's')
                 den_temp = one(den_temp)
             end
             matrix[o,i] = SISOTransferFunction(num_temp, den_temp)
@@ -85,8 +80,12 @@ end
 ##                      Conversion Functions                       ##
 #####################################################################
 promote_rule{T, S}(::Type{SISOTransferFunction{T}}, ::Type{SISOTransferFunction{S}}) = SISOTransferFunction{promote_type(T, S)}
-promote_rule{T, S<:Number}(::Type{SISOTransferFunction{T}}, ::Type{S}) = SISOTransferFunction{promote_type(T, S)}
+promote_rule{T, S<:Real}(::Type{SISOTransferFunction{T}}, ::Type{S}) = SISOTransferFunction{promote_type(T, S)}
 promote_rule{T, S}(::Type{TransferFunction{T}}, ::Type{TransferFunction{S}}) = TransferFunction{promote_type(T, S)}
+
+convert{T}(::Type{SISOTransferFunction{T}}, t::SISOTransferFunction) = 
+    SISOTransferFunction(convert(Poly{T}, t.num), convert(Poly{T}, t.den))
+convert{T}(::Type{SISOTransferFunction{T}}, o::Real) = o*one(SISOTransferFunction{T})
 
 if SLICOT_DEFINED
 function ss2tf(sys::StateSpace)
@@ -141,20 +140,48 @@ end #SLICOT_DEFINED
 ##                          Misc. Functions                        ##
 #####################################################################
 
+## ONE ##
+one(t::SISOTransferFunction) = SISOTransferFunction(one(t.num), one(t.num))
+one{T}(::Type{SISOTransferFunction{T}}) = SISOTransferFunction(Poly([one(T)], :s), Poly([one(T)], :s))
+function one{T}(t::TransferFunction{T})
+    return TransferFunction(ones(SISOTransferFunction{T}, t.outputs, t.inputs), t.inputs, t.outputs)
+end
+
+function one{T}(::Type{TransferFunction{T}})
+    return TransferFunction(ones(SISOTransferFunction{T}, 1, 1), 1, 1)
+end
+
+## ZERO ##
+zero(t::SISOTransferFunction) = SISOTransferFunction(zero(t.num), one(t.num))
+zero{T}(::Type{SISOTransferFunction{T}}) = SISOTransferFunction(Poly([zero(T)], :s), Poly([one(T)], :s))
+function zero{T}(t::TransferFunction{T})
+    return TransferFunction(zeros(SISOTransferFunction{T}, t.outputs, t.inputs), t.inputs, t.outputs)
+end
+
+function zero{T}(::Type{TransferFunction{T}})
+    return TransferFunction(zeros(SISOTransferFunction{T}, 1, 1), 1, 1)
+end
+
+## INDEXING ##
+getindex(t::TransferFunction, i...) = t.matrix[i...] 
+setindex!(t::TransferFunction, t2, i...) = (t.matrix[i...] = t2)
+endof(t::TransferFunction) = length(t)
+
+eltype{T}(::TransferFunction{T}) = T
+eltype{T}(::SISOTransferFunction{T}) = T
+
 function copy(t::TransferFunction)
     matrix = copy(t.matrix)
     return TransferFunction(matrix, t.inputs, t.outputs)
 end
 
-function size(t::TransferFunction)
-    return (t.inputs, t.outputs)
-end
+size(t::TransferFunction) = size(t.matrix)
+length(t::TransferFunction) = length(t.matrix)
 
-function gcd{T<:FloatingPoint}(a::Poly{T}, b::Poly{T})
+function gcd{T<:FloatingPoint, S<:FloatingPoint}(a::Poly{T}, b::Poly{S})
     #Finds the Greatest Common Denominator of two polynomials recursively using
     #Euclid's algorithm: http://en.wikipedia.org/wiki/Polynomial_greatest_common_divisor#Euclid.27s_algorithm
-    #TODO: Rewrite in procedural form
-    if all(abs(b.a).<=2*eps(T))
+    if all(abs(b.a).<=2*eps(S))
         return a
     else
         s, r = divrem(a, b)
@@ -184,11 +211,11 @@ function +(t1::SISOTransferFunction, t2::SISOTransferFunction)
     return SISOTransferFunction(num, den)
 end
 
-function +(t::SISOTransferFunction, n::Number)
+function +(t::SISOTransferFunction, n::Real)
     num = t.num + n*t.den
     return SISOTransferFunction(num, t.den)
 end
-+(n::Number, t::SISOTransferFunction) = t + n
++(n::Real, t::SISOTransferFunction) = t + n
 
 function +(t1::TransferFunction, t2::TransferFunction)
     #Check that the input-output sizes are consistent
@@ -203,7 +230,7 @@ function +(t1::TransferFunction, t2::TransferFunction)
     return TransferFunction(matrix, t1.inputs, t1.outputs)
 end
 
-function +(t::TransferFunction, n::Number)
+function +(t::TransferFunction, n::Real)
     if t.inputs == t.outputs == 1
         t2 = copy(t)
         t2.matrix[1,1] += n
@@ -212,7 +239,7 @@ function +(t::TransferFunction, n::Number)
     end
     return t2
 end
-+(n::Number, t::TransferFunction) = t + n
++(n::Real, t::TransferFunction) = t + n
 
 ## SUBTRACTION ##
 function -(t1::SISOTransferFunction, t2::SISOTransferFunction)
@@ -221,11 +248,11 @@ function -(t1::SISOTransferFunction, t2::SISOTransferFunction)
     return SISOTransferFunction(num, den)
 end
 
-function -(n::Number, t::SISOTransferFunction)
+function -(n::Real, t::SISOTransferFunction)
     num = n*t.den - t.num
     return SISOTransferFunction(num, t.den)
 end
--(t::SISOTransferFunction, n::Number) = t + -n
+-(t::SISOTransferFunction, n::Real) = t + -n
 
 function -(t1::TransferFunction, t2::TransferFunction)
     #Check that the input-output sizes are consistent
@@ -240,7 +267,7 @@ function -(t1::TransferFunction, t2::TransferFunction)
     return TransferFunction(matrix, t1.inputs, t1.outputs)
 end
 
-function -(n::Number, t::TransferFunction)
+function -(n::Real, t::TransferFunction)
     if t.inputs == t.outputs == 1
         t2 = copy(t)
         t2.matrix[1,1] = n - t2.matrix[1,1]
@@ -249,7 +276,7 @@ function -(n::Number, t::TransferFunction)
     end
     return t2
 end
--(t::TransferFunction, n::Number) = t + -n
+-(t::TransferFunction, n::Real) = t + -n
 
 ## NEGATION ##
 -(t:: SISOTransferFunction) = SISOTransferFunction(-t.num, t.den)
@@ -262,10 +289,10 @@ function *(t1::SISOTransferFunction, t2::SISOTransferFunction)
     return SISOTransferFunction(num, den)
 end
 
-*(t::SISOTransferFunction, n::Number) = SISOTransferFunction(t.num*n, t.den)
-*(n::Number, t::SISOTransferFunction) = t*n
-.*(t::SISOTransferFunction, n::Number) = t*n
-.*(n::Number, t::SISOTransferFunction) = t*n
+*(t::SISOTransferFunction, n::Real) = SISOTransferFunction(t.num*n, t.den)
+*(n::Real, t::SISOTransferFunction) = t*n
+.*(t::SISOTransferFunction, n::Real) = t*n
+.*(n::Real, t::SISOTransferFunction) = t*n
 
 function *(t1::TransferFunction, t2::TransferFunction)
     #Check that the input-output sizes are consistent
@@ -277,11 +304,11 @@ function *(t1::TransferFunction, t2::TransferFunction)
     return TransferFunction(matrix, t1.inputs, t2.outputs)
 end
 
-function *(t::TransferFunction, n::Number)
+function *(t::TransferFunction, n::Real)
     matrix = t.matrix*n
     return TransferFunction(matrix, t.inputs, t.outputs)
 end
-*(n::Number, t::TransferFunction) = t*n
+*(n::Real, t::TransferFunction) = t*n
 
 ## DIVISION ##
 function /(t1::SISOTransferFunction, t2::SISOTransferFunction)
@@ -300,8 +327,8 @@ function /(t1::TransferFunction, t2::TransferFunction)
     return TransferFunction(matrix, t1.inputs, t2.outputs)
 end
 
-/{T<:Real}(t::TransferFunction, n::T) = /(t, tf([n], [1.0]))
-/{T<:Real}(n::T, t::TransferFunction) = /(tf([n], [1.0]), t)
+/{T<:Real}(t::TransferFunction, n::T) = t*(1/n)
+/{T<:Real}(n::T, t::TransferFunction) = /(n*one(t), t)
 
 #####################################################################
 ##                        Display Functions                        ##
