@@ -1,83 +1,69 @@
-#Module for working with Transfer Functions
-
-#Types:
-#--> TransferFunction
-
-#Constructors:
-#--> tf(num, den)
-
-#Conversions:
-#--> ss2tf(sys)
-
-#Methods:
-#--> show
-#--> string(TransferFunction)
-#--> Operators: +, -, *, /
-
-using .polylib
-
-#Try to import slicot
-SLICOT_DEFINED = true
-try
-    import Slicot.Simple: tb04ad
-catch
-    SLICOT_DEFINED = false
-end
-
 #####################################################################
 ##                      Data Type Declarations                     ##
 #####################################################################
 
-type TransferFunction <: Sys
+## User should just use TransferFunction
+immutable SISOTransferFunction{T<:FloatingPoint} <: Sys
+    ## Type for SISO Transfer Functions only. ##
+    num::Poly{T}
+    den::Poly{T}
+    function SISOTransferFunction(num::Poly{T}, den::Poly{T})
+        fact = gcd(num, den)
+        if fact == one(fact)
+            return new(num, den)
+        else
+            num_s = num/fact
+            den_s = den/fact
+            #To stop the num and den from getting smaller each time, calculate
+            #a scaling factor so that den[1] = 1
+            scale = 1.0/den_s[1]
+            num_s = num_s*scale
+            den_s = den_s*scale
+            return new(num_s, den_s)
+        end
+    end
+end
+SISOTransferFunction{T<:FloatingPoint}(num::Poly{T}, den::Poly{T}) = SISOTransferFunction{T}(num, den)
+
+immutable TransferFunction{T<:FloatingPoint} <: Sys
     ## Datatype for SISO and MIMO transfer functions ##
-    num::Array{Vector{Float64}, 2}
-    den::Array{Vector{Float64}, 2}
+    matrix::Array{SISOTransferFunction{T}, 2}
     inputs::Integer
     outputs::Integer
+end
 
-    function TransferFunction(num::Array{Vector{Float64}, 2}, den::Array{Vector{Float64}, 2})
-        ## Inner constructor for input validation, and determining inputs/outputs ##
-        #Validate input and output dimensions match
-        out_n, in_n = size(num)
-        out_d, in_d = size(den)
-        if out_n != out_d
-            error("num and den output dimensions must match")
-        end
-        outputs = out_n
-
-        if in_n != in_d
-            error("num and den input dimensions must match")
-        end
-        inputs = in_n
-
-        ## Remove leading zeros on num and den ##
-        #Data is deepcopied to prevent mutating the calling arrays
-        #TODO: Determine if deepcopy needed. Should be able to allocate space,
-        #and just return trimmed arrays into location.
-        new_den = deepcopy(den)
-        new_num = deepcopy(num)
-        for o=1:outputs
-            for i=1:inputs
-                den_temp = trimzeros(new_den[o,i])
-                if den_temp == [0.0]
-                    #This is a denominator with zero value, throw error
-                    error("Input $i, output $o has a zero denominator")
-                end
-                num_temp = trimzeros(new_num[o,i])
-                if num_temp == [0.0]
-                    #The numerator is zero, make the denominator 1
-                    #assignment to the array occurs here, as no need to simplify
-                    new_num[o,i] = num_temp
-                    new_den[o,i] = [1.0]
-                    #No need to simplify the fraction, continue to next input
-                    continue
-                end
-                #Simplify the resulting fraction
-                new_num[o,i], new_den[o,i] = polyfracsimp(num_temp, den_temp)
-            end
-        end
-        new(new_num, new_den, inputs, outputs)
+function TransferFunction{T<:FloatingPoint}(num::Array{Vector{T}, 2}, den::Array{Vector{T}, 2})
+    #Validate input and output dimensions match
+    out_n, in_n = size(num)
+    out_d, in_d = size(den)
+    if out_n != out_d
+        error("num and den output dimensions must match")
     end
+    outputs = out_n
+
+    if in_n != in_d
+        error("num and den input dimensions must match")
+    end
+    inputs = in_n
+
+    matrix = Array(SISOTransferFunction{T}, outputs, inputs)
+    for o=1:outputs
+        for i=1:inputs
+            den_temp = Poly(den[o,i], 's')
+            if den_temp == zero(den_temp)
+                #This is a denominator with zero value, throw error
+                error("Input $i, output $o has a zero denominator")
+            end
+            num_temp = Poly(num[o,i], 's')
+            if num_temp == zero(num_temp) 
+                #The numerator is zero, make the denominator 1
+                num_temp = Poly(num_temp, 's')
+                den_temp = one(den_temp)
+            end
+            matrix[o,i] = SISOTransferFunction(num_temp, den_temp)
+        end
+    end
+    TransferFunction(matrix, inputs, outputs)
 end
 
 
@@ -87,26 +73,21 @@ end
 
 function tf{T<:Real, S<:Real}(num::Vector{T}, den::Vector{S})
     ## Create SISO system ##
-    narr = Array(Vector{Float64}, 1, 1)
-    narr[1,1] = convert(Vector{Float64}, num)
-    darr = Array(Vector{Float64}, 1, 1)
-    darr[1,1] = convert(Vector{Float64}, den)
-    TransferFunction(narr, darr)
-end
-
-function tf(num::Vector{Float64}, den::Vector{Float64})
-    ## Create SISO system ##
-    #Version for already Float64, avoids type conversion
-    narr = Array(Vector{Float64}, 1, 1)
-    narr[1,1] = num
-    darr = Array(Vector{Float64}, 1, 1)
-    darr[1,1] = den
+    R = promote_type(promote_type(T, S), Float16)
+    narr = Array(Vector{R}, 1, 1)
+    narr[1,1] = convert(Vector{R}, num)
+    darr = Array(Vector{R}, 1, 1)
+    darr[1,1] = convert(Vector{R}, den)
     TransferFunction(narr, darr)
 end
 
 #####################################################################
 ##                      Conversion Functions                       ##
 #####################################################################
+promote_rule{T, S}(::Type{SISOTransferFunction{T}}, ::Type{SISOTransferFunction{S}}) = SISOTransferFunction{promote_type(T, S)}
+promote_rule{T, S<:Number}(::Type{SISOTransferFunction{T}}, ::Type{S}) = SISOTransferFunction{promote_type(T, S)}
+promote_rule{T, S}(::Type{TransferFunction{T}}, ::Type{TransferFunction{S}}) = TransferFunction{promote_type(T, S)}
+
 if SLICOT_DEFINED
 function ss2tf(sys::StateSpace)
     ## Convert a StateSpace to a TransferFunction ##
@@ -154,234 +135,209 @@ function ss2tf(A::Array{Float64,2}, B::Array{Float64,2}, C::Array{Float64,2}, D:
     end
     return TransferFunction(num, den)
 end
-end
+end #SLICOT_DEFINED
 
 #####################################################################
 ##                          Misc. Functions                        ##
 #####################################################################
 
-function size(self::TransferFunction)
-    return (self.inputs, self.outputs)
+function copy(t::TransferFunction)
+    matrix = copy(t.matrix)
+    return TransferFunction(matrix, t.inputs, t.outputs)
+end
+
+function size(t::TransferFunction)
+    return (t.inputs, t.outputs)
+end
+
+function gcd{T<:FloatingPoint}(a::Poly{T}, b::Poly{T})
+    #Finds the Greatest Common Denominator of two polynomials recursively using
+    #Euclid's algorithm: http://en.wikipedia.org/wiki/Polynomial_greatest_common_divisor#Euclid.27s_algorithm
+    #TODO: Rewrite in procedural form
+    if all(abs(b.a).<=2*eps(T))
+        return a
+    else
+        s, r = divrem(a, b)
+        return gcd(b, r)
+    end
 end
 
 #####################################################################
 ##                         Math Operators                          ##
 #####################################################################
 
-#TODO: Refactor for less code, using parametric types.
-#----> Should be able to call operator, and have operator attempt
-#----> conversion to TF if other is not a TF.
-
 ## EQUALITY ##
-function ==(tf1::TransferFunction, tf2::TransferFunction)
-    if size(tf1) != size(tf2)
+==(t1::SISOTransferFunction, t2::SISOTransferFunction) = (t1.num == t2.num && t1.den == t2.den)
+
+function ==(t1::TransferFunction, t2::TransferFunction)
+    if size(t1) != size(t2)
         return false
     else
-        return tf1.num == tf2.num && tf1.den == tf2.den
+        return t1.matrix == t2.matrix
     end
 end
 
 ## ADDITION ##
-function +(self::TransferFunction, other::TransferFunction)
-    ## Add two transfer function objects (parallel connection) ##
+function +(t1::SISOTransferFunction, t2::SISOTransferFunction)
+    num = t1.num*t2.den + t2.num*t1.den
+    den = t1.den*t2.den
+    return SISOTransferFunction(num, den)
+end
 
+function +(t::SISOTransferFunction, n::Number)
+    num = t.num + n*t.den
+    return SISOTransferFunction(num, t.den)
+end
++(n::Number, t::SISOTransferFunction) = t + n
+
+function +(t1::TransferFunction, t2::TransferFunction)
     #Check that the input-output sizes are consistent
-    if self.inputs != other.inputs
-        error("The first summand has %i input(s), but the second has %i.", self.inputs, other.inputs)
+    if t1.inputs != t2.inputs
+        error("The first summand has %i input(s), but the second has %i.", t1.inputs, t2.inputs)
     end
-    if self.outputs != other.outputs
-        error("The first summand has %i output(s), but the second has %i.", self.outputs, other.outputs)
-    end
-
-    #Preallocate the numerator and denominator of the sum
-    num = Array(Vector{Float64}, self.outputs, self.inputs)
-    den = Array(Vector{Float64}, self.outputs, self.inputs)
-
-    #Perform SISO addition for each input & output
-    for o=1:self.outputs
-        for i=1:self.inputs
-            num[o,i], den[o, i] = _addSISO(self.num[o,i], self.den[o,i], other.num[o,i], other.den[o,i])
-        end
+    if t1.outputs != t2.outputs
+        error("The first summand has %i output(s), but the second has %i.", t1.outputs, t2.outputs)
     end
 
-    return TransferFunction(num, den)
+    matrix = t1.matrix + t2.matrix
+    return TransferFunction(matrix, t1.inputs, t1.outputs)
 end
 
-function +{T<:Real}(self::TransferFunction, other::T)
-    ## Add a number to a transfer function ##
-    temp = tf([other], [1.0])
-    #Ensure input-output match
-    #this is kinda hacky, but it works for the checks we need
-    temp.inputs = self.inputs
-    temp.outputs = self.outputs
-    return +(self, temp)
+function +(t::TransferFunction, n::Number)
+    if t.inputs == t.outputs == 1
+        t2 = copy(t)
+        t2.matrix[1,1] += n
+    else
+        error("Must be SISO to add a constant")
+    end
+    return t2
 end
++(n::Number, t::TransferFunction) = t + n
 
-+{T<:Real}(other::T, self::TransferFunction) = +(self, other)
-    
 ## SUBTRACTION ##
-function -(self::TransferFunction, other::TransferFunction)
-    ## Subtract two transfer function objects (parallel connection) ##
+function -(t1::SISOTransferFunction, t2::SISOTransferFunction)
+    num = t1.num*t2.den - t2.num*t1.den
+    den = t1.den*t2.den
+    return SISOTransferFunction(num, den)
+end
 
+function -(n::Number, t::SISOTransferFunction)
+    num = n*t.den - t.num
+    return SISOTransferFunction(num, t.den)
+end
+-(t::SISOTransferFunction, n::Number) = t + -n
+
+function -(t1::TransferFunction, t2::TransferFunction)
     #Check that the input-output sizes are consistent
-    if self.inputs != other.inputs
-        error("The first summand has %i input(s), but the second has %i.", self.inputs, other.inputs)
+    if t1.inputs != t2.inputs
+        error("The first summand has %i input(s), but the second has %i.", t1.inputs, t2.inputs)
     end
-    if self.outputs != other.outputs
-        error("The first summand has %i output(s), but the second has %i.", self.outputs, other.outputs)
-    end
-
-    #Preallocate the numerator and denominator of the sum
-    num = Array(Vector{Float64}, self.outputs, self.inputs)
-    den = Array(Vector{Float64}, self.outputs, self.inputs)
-
-    #Perform SISO addition for each input & output
-    for o=1:self.outputs
-        for i=1:self.inputs
-            num[o,i], den[o, i] = _addSISO(self.num[o,i], self.den[o,i], -other.num[o,i], other.den[o,i])
-        end
+    if t1.outputs != t2.outputs
+        error("The first summand has %i output(s), but the second has %i.", t1.outputs, t2.outputs)
     end
 
-    return TransferFunction(num, den)
+    matrix = t1.matrix - t2.matrix
+    return TransferFunction(matrix, t1.inputs, t1.outputs)
 end
 
-function -{T<:Real}(self::TransferFunction, other::T)
-    ## Subtract a number from a transfer function ##
-    temp = tf([other], [1.0])
-    #Ensure input-output match
-    #this is kinda hacky, but it works for the checks we need
-    temp.inputs = self.inputs
-    temp.outputs = self.outputs
-    return -(self, temp)
+function -(n::Number, t::TransferFunction)
+    if t.inputs == t.outputs == 1
+        t2 = copy(t)
+        t2.matrix[1,1] = n - t2.matrix[1,1]
+    else
+        error("Must be SISO to subtract a constant")
+    end
+    return t2
 end
-
--{T<:Real}(other::T, self::TransferFunction) = +(-self, other)
+-(t::TransferFunction, n::Number) = t + -n
 
 ## NEGATION ##
-function -(self::TransferFunction)
-    ## Negate a transfer function ##
-    #Preallocate space for num
-    num = Array(Vector{Float64}, self.outputs, self.inputs)
-    for o=1:self.outputs
-        for i=1:self.inputs
-            num[o,i] = -self.num[o,i]
-        end
-    end
-    return TransferFunction(num, self.den)
-end
+-(t:: SISOTransferFunction) = SISOTransferFunction(-t.num, t.den)
+-(t::TransferFunction) = TransferFunction(-t.matrix, t.inputs, t.outputs)
 
 ## MULTIPLICATION ##
-function *(self::TransferFunction, other::TransferFunction)
-    ## Multiply two transfer functions together ##
+function *(t1::SISOTransferFunction, t2::SISOTransferFunction)
+    num = t1.num*t2.num
+    den = t1.den*t2.den
+    return SISOTransferFunction(num, den)
+end
 
+*(t::SISOTransferFunction, n::Number) = SISOTransferFunction(t.num*n, t.den)
+*(n::Number, t::SISOTransferFunction) = t*n
+.*(t::SISOTransferFunction, n::Number) = t*n
+.*(n::Number, t::SISOTransferFunction) = t*n
+
+function *(t1::TransferFunction, t2::TransferFunction)
     #Check that the input-output sizes are consistent
-    if self.inputs != other.outputs
-        error(@sprintf("Input->Output Mismatch: C = A*B: A has %i inputs, B has %i outputs", self.inputs, other.outputs))
+    if t1.inputs != t2.outputs
+        error(@sprintf("Input->Output Mismatch: C = A*B: A has %i inputs, B has %i outputs", t1.inputs, t2.outputs))
     end
 
-    inputs = other.inputs
-    outputs = self.outputs
-
-    #Preallocate the numerator and denominator of the product
-    num = Array(Vector{Float64}, self.outputs, self.inputs)
-    den = Array(Vector{Float64}, self.outputs, self.inputs)
-
-    #Temporary storage for the summands needed to find the (o, i)th element
-    #of the product.
-    num_summand = Array(Vector{Float64}, self.inputs)
-    den_summand = Array(Vector{Float64}, self.inputs)
-
-    for o=1:outputs
-        for i=1:inputs
-            for k=1:self.inputs
-                num_summand[k] = polymul(self.num[o,k], other.num[k,i])
-                den_summand[k] = polymul(self.den[o,k], other.den[k,i])
-                num[o,i], den[o,i] = _addSISO([0.0], [1.0], num_summand[k], den_summand[k])
-            end
-        end
-    end
-
-    return TransferFunction(num, den)
+    matrix = t1.matrix * t2.matrix
+    return TransferFunction(matrix, t1.inputs, t2.outputs)
 end
 
-function *{T<:Real}(self::TransferFunction, other::T)
-    ## Multiply a number to a transfer function ##
-    temp = tf([other], [1.0])
-    #Ensure input-output match
-    #this is kinda hacky, but it works for the checks we need
-    temp.inputs = self.inputs
-    temp.outputs = self.outputs
-    return *(self, temp)
+function *(t::TransferFunction, n::Number)
+    matrix = t.matrix*n
+    return TransferFunction(matrix, t.inputs, t.outputs)
 end
-
-*{T<:Real}(other::T, self::TransferFunction) = *(self, other)
+*(n::Number, t::TransferFunction) = t*n
 
 ## DIVISION ##
-function /(self::TransferFunction, other::TransferFunction)
-    ## Divide two transfer functions ##
-    #TODO: Implement division for MIMO systems
+function /(t1::SISOTransferFunction, t2::SISOTransferFunction)
+    num = t1.num*t2.den
+    den = t1.den*t2.num
+    return SISOTransferFunction(num, den)
+end
 
-    if self.inputs > 1 || self.outputs > 1 || other.inputs > 1 || other.outputs > 1
-        error("NotImplementedError: Division is currently only implemented for SISO systems")
+function /(t1::TransferFunction, t2::TransferFunction)
+    if t1.inputs == t2.inputs == t1.outputs == t2.outputs
+        t = t1.matrix[1,1]/t2.matrix[1,1]
+        matrix = reshape([t], 1, 1)
+    else
+        error("NotImplementedError: MIMO division isn't implemented")
     end
-
-    num = polymul(self.num[1,1], other.den[1,1])
-    den = polymul(self.den[1,1], other.num[1,1])
-
-    return tf(num, den)
+    return TransferFunction(matrix, t1.inputs, t2.outputs)
 end
 
-/{T<:Real}(self::TransferFunction, other::T) = /(self, tf([other], [1.0]))
-/{T<:Real}(other::T, self::TransferFunction) = /(tf([other], [1.0]), self)
-
-## HELPERS ##
-function _addSISO(num1::Vector{Float64}, den1::Vector{Float64}, num2::Vector{Float64}, den2::Vector{Float64})
-    ## Helper function for adding 2 SISO systems together ##
-    num = polyadd(polymul(num1, den2), polymul(num2, den1))
-    den = polymul(den1, den2)
-    return num, den
-end
-
+/{T<:Real}(t::TransferFunction, n::T) = /(t, tf([n], [1.0]))
+/{T<:Real}(n::T, t::TransferFunction) = /(tf([n], [1.0]), t)
 
 #####################################################################
 ##                        Display Functions                        ##
 #####################################################################
+function print(io::IO, tf::SISOTransferFunction)
+    #Convert the numerator and denominator to strings
+    numstr = sprint(print, tf.num)
+    denstr = sprint(print, tf.den)
 
-function string(tf::TransferFunction)
-    ## String representation of the transfer function ##
+    #Figure out the length of the separating line
+    dashcount = max(length(numstr), length(denstr))
 
+    #Center the numerator or denominator
+    if length(numstr) < dashcount
+        numstr = "$(repeat(" ", int((dashcount - length(numstr))/2)))$numstr"
+    else
+        denstr = "$(repeat(" ", int((dashcount - length(denstr))/2)))$denstr"
+    end
+    print(io, numstr)
+    print(io, "\n$(repeat("-", dashcount))\n")
+    print(io, denstr)
+end
+
+function print(io::IO, tf::TransferFunction)
     mimo = tf.inputs > 1 || tf.outputs > 1
-    outstr = ""
-
     for i=1:tf.inputs
-        for j=1:tf.outputs
+        for o=1:tf.outputs
             if mimo
-                outstr = "$(outstr)Input $i to output $j\n"
+                print(io, "Input $i to output $o\n")
             end
-
-            #Convert the numerator and denominator to strings
-            numstr = polytostring(tf.num[j,i])
-            denstr = polytostring(tf.den[j,i])
-
-            #Figure out the length of the separating line
-            dashcount = max(length(numstr), length(denstr))
-
-            #Center the numerator or denominator
-            if length(numstr) < dashcount
-                numstr = "$(repeat(" ", int((dashcount - length(numstr))/2)))$numstr"
-            else
-                denstr = "$(repeat(" ", int((dashcount - length(denstr))/2)))$denstr"
-            end
-            #Cat string with numerator, dashes, and denominator strings
-            outstr = "$outstr$numstr\n$(repeat("-", dashcount))\n$denstr\n\n"
+            print(io, tf.matrix[o, i])
         end
     end
-
-    return outstr
 end
 
 function show(io::IO, tf::TransferFunction)
-    ## Print a transfer function representation in the REPL ##
-    print("TransferFunction:\n")
-    print(string(tf))
+    print(io, "TransferFunction:\n")
+    print(io, tf)
 end

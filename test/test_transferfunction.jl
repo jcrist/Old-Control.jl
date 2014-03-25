@@ -18,4 +18,4 @@ B = tf([1], [1, 2, 3])
 @test A/2 == tf([1], [2, 4])
 
 #Printing
-@test string(A) == "  1\n-----\ns + 2\n\n" 
+@test string(A) == "  1.0\n-------\ns + 2.0"
