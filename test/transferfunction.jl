@@ -1,7 +1,3 @@
-using Base.Test
-include("../src/Control.jl")
-using Control
-
 A = tf([1], [1, 2])
 B = tf([1], [1, 2, 3])
 
