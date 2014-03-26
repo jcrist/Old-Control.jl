@@ -9,6 +9,6 @@ before_install:
     - sudo apt-get update -qq -y
     - sudo apt-get install libpcre3-dev julia -y
 script:
-    - julia -e 'Pkg.init(); run(`ln -s $(pwd()) $(Pkg.dir())/Control`); Pkg.resolve()'
+    - julia -e 'Pkg.init(); run(`ln -s $(pwd()) $(Pkg.dir())/Control`); Pkg.pin("Control"); Pkg.resolve()'
     - julia -e 'using Control; @assert isdefined(:Control); @assert typeof(Control) === Module'
     - julia test/runtests.jl
