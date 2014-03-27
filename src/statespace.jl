@@ -113,12 +113,12 @@ function +(s1::StateSpace, s2::StateSpace)
     return ss(A, B, C, D)
 end
 
-+(s1::StateSpace, s2::Real) = ss(s1.A, s1.B, s1.C, s1.D + s2)
++(s1::StateSpace, s2::Real) = ss(s1.A, s1.B, s1.C, s1.D .+ s2)
 +{T<:Real}(s2::T, s1::StateSpace) = +(s1, s2)
 
 ## SUBTRACTION ##
 -(s1::StateSpace, s2::StateSpace) = +(s1, -s2)
--(s::StateSpace, n::Real) = ss(s.A, s.B, s.C, s.D - n)
+-(s::StateSpace, n::Real) = ss(s.A, s.B, s.C, s.D .- n)
 -(n::Real, s::StateSpace) = +(-s, n)
 
 ## NEGATION ##
