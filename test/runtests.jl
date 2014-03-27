@@ -30,10 +30,8 @@ function custom_handler(r::Test.Error)
     append!(TEST_DATA.error, [r])
 end
 
-info_string = """Julia Version: $(Base.VERSION)$(Base.commit_date)
-$(Base.commit_string)
-$(Sys.MACHINE)
-"""
+info_string = "Julia Version: $(Base.VERSION), $(Sys.MACHINE)"
+
 ##############################################################################
 
 # List of tests
