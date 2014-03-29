@@ -1,5 +1,6 @@
 using Base.Test
-include("../src/Control.jl")
+## Until Polynomial is updated with a new tag, need to be on the master branch
+Pkg.checkout("Polynomial")
 using Control
 
 #############################################################################
@@ -30,7 +31,9 @@ function custom_handler(r::Test.Error)
     append!(TEST_DATA.error, [r])
 end
 
-info_string = "Julia Version: $(Base.VERSION), $(Sys.MACHINE)"
+info_string = """Julia Version: $(Base.VERSION), ($(Base.GIT_VERSION_INFO.date_string))
+Commit $(Base.GIT_VERSION_INFO.commit_short)
+$(Sys.MACHINE)"""
 
 ##############################################################################
 

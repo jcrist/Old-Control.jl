@@ -1,66 +1,10 @@
-Control Systems toolbox for Julialang
+Control Systems Toolbox for Julia
+====
+[![Build Status](https://travis-ci.org/vtjnash/Polynomial.jl.png?branch=master)](https://travis-ci.org/jcrist/Control.jl)
 
-Implementation plan:
-=====
-
-Below follows a list of things to do. As they get done, they will be checked off.
-
-Types
----
-    [x] Transfer Function
-
-        [x] Constructors
-        [x] Printing
-        [x] Addition
-        [x] Subtraction
-        [x] Multiplication
-        [x] Division
-
-    [x] State Space
-
-        [x] Constructors
-        [x] Printing
-        [x] Addition
-        [x] Subtraction
-        [x] Multiplication
-        [x] Division
-            -NOTE: Currently division by SS objects isn't supported. However, this is the current state with python-control as well. Low key issue. Will examine Octave's control lib at somepoint to implement this feature.
-
-    [ ] tf2ss
-    [x] ss2tf
-            -NOTE: This depends on Slicot.jl. Haven't figured out packaging yet, so this isn't robust at all. TODO.
-
-Analysis
----
-    [ ] pole
-    [ ] zero
-    [ ] zpkdata
-    [ ] tfdata
-    [ ] ctrb
-    [ ] obsv
-
-Plots
----
-    [ ] rlocus
-    [ ] pzmap
-    [ ] bode
-    [ ] step
-    [ ] nyquist
-    [ ] impuls
-    [ ] lsim
-
-Control
----
-    [ ] pid
-    [ ] feedback
-
-Design
----
-    [ ] place
-    [ ] acker
-    [ ] lqr
-    [ ] lqi
-
-Digital
----
-    [ ] c2d
+This is an implementation of a control systems toolbox, such as those found
+in Matlab, Octave, or Python. Some functionality requires the use of `SLICOT`,
+which has a Julia wrapper found at [Slicot.jl](https://github.com/jcrist/Slicot.jl).
+Note that neither of these libraries are currently mature, but development is
+active, and should be usable shortly! Check the [status page](https://github.com/jcrist/Control.jl/blob/master/status.md) 
+for an up to date list of what's been implemented.
