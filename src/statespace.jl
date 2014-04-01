@@ -53,29 +53,23 @@ end
 
 ## General constructor, for 1D or 2D arrays of any real type ##
 function ss{T1<:Real, T2<:Real, T3<:Real, T4<:Real}(A::Array{T1}, B::Array{T2}, C::Array{T3}, D::Array{T4})
-    #Only check for 1x1 arrays. Anything else could be misinterpretted in
-    #terms of transpose or not. Better to error than to assume.
-    if ndims(A) == 1 && size(A)[1] == 1
-        A = reshape(A, 1, 1)
-    elseif ndims(A) > 2
-        error("Matrices must not be larger than 2D")
+    # Create iterables to run through test
+    args = Array[A, B, C, D]
+    strs = ["A", "B", "C", "D"]
+    for i=1:4
+        #Only check for 1x1 arrays. Anything else could be misinterpretted in
+        #terms of transpose or not. Better to error than to assume.
+        if ndims(args[i]) == 1
+            if size(args[i])[1] == 1
+                args[i] = reshape(args[i], 1, 1)
+            else
+                error("$(strs[i]) must be 2D")
+            end
+        elseif ndims(args[i]) > 2
+            error("$(strs[i]) must not be larger than 2D")
+        end
     end
-    if ndims(B) == 1 && size(B)[1] == 1
-        B = reshape(B, 1, 1)
-    elseif ndims(B) > 2
-        error("Matrices must not be larger than 2D")
-    end
-    if ndims(C) == 1 && size(C)[1] == 1
-        C = reshape(C, 1, 1)
-    elseif ndims(C) > 2
-        error("Matrices must not be larger than 2D")
-    end
-    if ndims(D) == 1 && size(D)[1] == 1
-        D = reshape(D, 1, 1)
-    elseif ndims(D) > 2
-        error("Matrices must not be larger than 2D")
-    end
-    return ss(A, B, C, D)
+    return ss(args...)
 end
 
 #####################################################################
@@ -127,15 +121,16 @@ end
 ## MULTIPLICATION ##
 function *(s1::StateSpace, s2::StateSpace)
     #Check dimension alignment
-    if s1.inputs != s2.outputs
+    #Note: s1*s2 = u -> s1 -> s2 -> y
+    if s1.outputs != s2.inputs
         error("A*B: # inputs A must equal # outputs B")
     end
 
-    A = [s2.A  zeros(s2.states, s1.states); 
-         s1.B*s2.C   s1.A]
-    B = [s2.B ; s1.B*s2.D]
-    C = [s1.D*s2.C   s1.C]
-    D = s1.D * s2.D
+    A = [s1.A zeros(s1.states, s2.states); 
+         s2.B*s1.C   s2.A]
+    B = [s1.B ; s2.B*s1.D]
+    C = [s2.D*s1.C   s2.C]
+    D = s2.D*s1.D
 
     return ss(A, B, C, D)
 end
@@ -144,14 +139,16 @@ end
 *(n::Real, s::StateSpace) = *(s, n)
 
 ## DIVISION ##
-function /(s1::StateSpace, s2::StateSpace)
-    error("NotImplementedError: Division by StateSpace objects isn't
-    implemented yet")
-end
+/(s1::StateSpace, s2::StateSpace) = s1*(1/s2)
 
 function /(n::Real, s::StateSpace)
-    error("NotImplementedError: Division by StateSpace objects isn't
-    implemented yet")
+    # Ensure s.D is invertible
+    Dinv = try
+        inv(s.D)
+    catch 
+        error("D isn't invertible")
+    end
+    return ss(s.A-s.B*Dinv*s.C, s.B*Dinv, -n*Dinv*s.C, n*Dinv)
 end
 
 /(s::StateSpace, n::Real) = ss(s.A, s.B, s.C/n, s.D/n)

@@ -1,6 +1,8 @@
 using Base.Test
 ## Until Polynomial is updated with a new tag, need to be on the master branch
-Pkg.checkout("Polynomial")
+if Pkg.installed("Polynomial") < v"0.1.1+"
+    Pkg.checkout("Polynomial")
+end
 using Control
 
 #############################################################################

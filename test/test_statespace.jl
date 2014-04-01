@@ -15,11 +15,14 @@ ss([1], [2], [3], [4])
 @test 1 - A == ss([1], [2], [-3], [-3])
 @test A*2 == 2*A == ss([1], [2], [6], [8])
 @test A/2 == ss([1], [2], [1.5], [2])
+@test 1/A == ss([-0.5], [0.5], [-0.75], [0.25])
+@test 1/(1/A) == A
+@test A/B == ss([1 0 0; 0.375 -0.5 -0.375; 1.5 0 -0.5], [2 0.5 2]', [0.1875 -0.75 -0.1875], [0.25])
 
 #Printing
 @test sprint(show, B) == "StateSpace:\nA = \n1\t0\n6\t1\n\nB = \n2\n8\n\nC = \n12\t3\n\nD = \n16\n" 
 
 #Test Errors
-@test_throws A*C        #I/O dimension mismatch
-@test_throws 1/A        #SS division not implemented
-@test_throws A/B        #SS division not implemented
+@test_throws A*C                                        #I/O dimension mismatch
+@test_throws ss([1 0; 6 1], [2; 8], [12 3], [16])       #Constructor with 1D array with more than 1 entry
+@test_throws 1/C                                        #Non-invertible D matrix

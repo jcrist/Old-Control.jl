@@ -27,13 +27,9 @@ Types
         [x] Subtraction
         [x] Multiplication
         [x] Division
-            -NOTE: Currently division by SS objects isn't supported. However, 
-            this is the current state with python-control as well. Low key 
-            issue. Will examine Octave's control lib at somepoint to implement 
-            this feature.
 
     [ ] tf2ss
-    [x] ss2tf
+    [ ] ss2tf
 
 Analysis
 ---
