@@ -20,9 +20,9 @@ ss([1], [2], [3], [4])
 @test A/B == ss([1 0 0; 0.375 -0.5 -0.375; 1.5 0 -0.5], [2 0.5 2]', [0.1875 -0.75 -0.1875], [0.25])
 
 #Printing
-@test sprint(show, B) == "StateSpace:\nA = \n1\t0\n6\t1\n\nB = \n2\n8\n\nC = \n12\t3\n\nD = \n16\n" 
+@test sprint(show, C) == "StateSpace:\nA = \n[-0.21 0.2\n 0.2 -0.21]\nB = \n[0.01 0.0\n 0.0 0.01]\nC = \n[1.0 0.0\n 0.0 1.0]\nD = \n[0.0 0.0\n 0.0 0.0]"
 
 #Test Errors
-@test_throws A*C                                        #I/O dimension mismatch
-@test_throws ss([1 0; 6 1], [2; 8], [12 3], [16])       #Constructor with 1D array with more than 1 entry
-@test_throws 1/C                                        #Non-invertible D matrix
+@test_throws ErrorException A*C                                        #I/O dimension mismatch
+@test_throws ErrorException ss([1 0; 6 1], [2; 8], [12 3], [16])       #Constructor with 1D array with more than 1 entry
+@test_throws ErrorException 1/C                                        #Non-invertible D matrix

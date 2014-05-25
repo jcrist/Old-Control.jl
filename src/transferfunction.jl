@@ -88,6 +88,7 @@ convert{T}(::Type{SISOTransferFunction{T}}, t::SISOTransferFunction) =
 convert{T}(::Type{SISOTransferFunction{T}}, o::Real) = o*one(SISOTransferFunction{T})
 
 if SLICOT_DEFINED
+
 function ss2tf(ss::StateSpace)
     ## Convert a StateSpace to a TransferFunction ##
     tfout = tb04ad('R', ss.states, ss.inputs, ss.outputs, ss.A,
@@ -99,38 +100,18 @@ function ss2tf(ss::StateSpace)
 
     for o=1:ss.outputs
         for i=1:ss.inputs
-            n1, n2, n3 = size(tfout[7][o,i,:])
-            num[o,i] = reshape(tfout[7][o, i, :], n3)
-            m,n = size(tfout[6][o, :])
+            n = size(tfout[7][o,i,:])[3]
+            num[o,i] = reshape(tfout[7][o, i, :], n)
+            n = size(tfout[6][o, :])[2]
             den[o,i] = reshape(tfout[6][o, :], n)
         end
     end
     return TransferFunction(num, den)
 end
 
-function ss2tf(A::Array{Float64,2}, B::Array{Float64,2}, C::Array{Float64,2}, D::Array{Float64,2})
-    ## Convert StateSpace to TransferFunction ##
+ss2tf{T1<:Real, T2<:Real, T3<:Real, T4<:Real}(A::Matrix{T1}, B::Matrix{T2}, 
+    C::Matrix{T3}, D::Matrix{T4}) = ss2tf(ss(A,B,C,D))
 
-    #Calculate necessary dimensions
-    states = size(A)[1]
-    inputs = size(B)[2]
-    outputs = size(C)[1]
-    tfout = tb04ad('R', states, inputs, outputs, A, B, C, D)
-
-    #Allocate space for the num and den arrays
-    num = Array(Vector{Float64}, ss.outputs, ss.inputs)
-    den = Array(Vector{Float64}, ss.outputs, ss.inputs)
-
-    for o=1:ss.outputs
-        for i=1:ss.inputs
-            n1, n2, n3 = size(tfout[7][o,i,:])
-            num[o,i] = reshape(tfout[7][o, i, :], n3)
-            m,n = size(tfout[6][o, :])
-            den[o,i] = reshape(tfout[6][o, :], n)
-        end
-    end
-    return TransferFunction(num, den)
-end
 end #SLICOT_DEFINED
 
 #####################################################################
@@ -344,9 +325,9 @@ function print(io::IO, tf::SISOTransferFunction)
     else
         denstr = "$(repeat(" ", int((dashcount - length(denstr))/2)))$denstr"
     end
-    print(io, numstr)
-    print(io, "\n$(repeat("-", dashcount))\n")
-    print(io, denstr)
+    println(io, numstr)
+    println(io, (repeat("-", dashcount)))
+    println(io, denstr)
 end
 
 function print(io::IO, tf::TransferFunction)
@@ -354,14 +335,19 @@ function print(io::IO, tf::TransferFunction)
     for i=1:tf.inputs
         for o=1:tf.outputs
             if mimo
-                print(io, "Input $i to output $o\n")
+                println(io, "Input $i to Output $o")
             end
-            print(io, tf.matrix[o, i])
+            if i == tf.inputs && o == tf.outputs
+                # Don't append a new line if it's the last line
+                print(io, tf.matrix[o, i])
+            else
+                println(io, tf.matrix[o,i])
+            end
         end
     end
 end
 
 function show(io::IO, tf::TransferFunction)
-    print(io, "TransferFunction:\n")
+    println(io, "TransferFunction:")
     print(io, tf)
 end

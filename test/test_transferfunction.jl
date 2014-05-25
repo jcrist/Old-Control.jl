@@ -28,4 +28,4 @@ B = tf([1], [1, 2, 3])
 @test length(A) == length(A.matrix) 
 
 #Printing
-@test string(A) == "  1.0\n-------\ns + 2.0"
+@test string(A) == "  1.0\n-------\ns + 2.0\n"

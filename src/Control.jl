@@ -10,7 +10,7 @@
 
 module Control
 
-export TransferFunction, tf, ss2tf
+export TransferFunction, tf
 export StateSpace, ss
 
 import Base: length, size, one, zero, copy, convert, promote_rule
@@ -19,11 +19,15 @@ import Base: *, /, +, -, ==, .*
 using Polynomial
 
 #Try to import slicot
-SLICOT_DEFINED = true
-try
+if haskey(Pkg.installed(), "Slicot")
     import Slicot.Simple: tb04ad
-catch
+    SLICOT_DEFINED = true
+else
     SLICOT_DEFINED = false
+end
+
+if SLICOT_DEFINED
+    export ss2tf
 end
 
 #Abstract type for all system types

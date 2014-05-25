@@ -14,9 +14,9 @@ Types
         [x] Subtraction
         [x] Multiplication
         [x] Division
-            -NOTE: Currently division by MIMO TransferFunctions isn't supported. 
+            -NOTE: Currently division by MIMO TransferFunctions isn't supported.
             However, this is the current state with python-control as well. 
-            With addition of LU-Decomposition for numeric types without pivoting,
+            With addition of LU-Decomposition for numeric types without pivoting
             (in the works), this will be supported.
 
     [x] State Space
